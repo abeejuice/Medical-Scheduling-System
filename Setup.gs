@@ -170,6 +170,8 @@ function onOpen() {
       .addItem('Add Sample Data', 'addSampleData')
       .addSeparator()
       .addItem('📋 Bulk Upload...', 'showBulkUploadDialog')
+      .addSeparator()
+      .addItem('📅 My Schedule', 'showFacultyScheduleView')
       .addSeparator();
 
     // Add admin-only menu items
@@ -748,5 +750,104 @@ function testBulkUploadService() {
   } catch (e) {
     Logger.error('BulkUploadService test failed', { error: e.toString() });
     SpreadsheetApp.getUi().alert('Error', 'Test failed: ' + e.message, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * Show the faculty schedule view
+ * Faculty can view their own schedule with countdown timer
+ */
+function showFacultyScheduleView() {
+  try {
+    var authService = AuthService.getInstance();
+    var currentUser = authService.getCurrentUser();
+
+    if (!currentUser) {
+      SpreadsheetApp.getUi().alert(
+        'Access Denied',
+        'You must be registered in the Faculty sheet to view your schedule.',
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+
+    var html = HtmlService.createHtmlOutputFromFile('FacultyScheduleView')
+      .setWidth(1000)
+      .setHeight(700)
+      .setTitle('My Schedule');
+
+    SpreadsheetApp.getUi().showModalDialog(html, 'My Schedule');
+
+    Logger.info('Faculty schedule view opened', {
+      email: currentUser.Email,
+      name: currentUser.Name
+    });
+  } catch (e) {
+    Logger.error('Failed to show faculty schedule view', { error: e.toString() });
+    SpreadsheetApp.getUi().alert('Error', 'Failed to open schedule: ' + e.message, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * Get faculty schedule data for the view
+ * SECURITY: Faculty can only view their own schedule
+ * Returns upcoming duties sorted by date
+ * @return {Object} Schedule data with faculty info and events
+ */
+function getFacultyScheduleData() {
+  try {
+    var authService = AuthService.getInstance();
+    var scheduleService = ScheduleService.getInstance();
+
+    var currentUser = authService.getCurrentUser();
+    if (!currentUser) {
+      return {
+        success: false,
+        error: 'User not found in Faculty sheet'
+      };
+    }
+
+    var facultyEmail = currentUser.Email;
+    var facultyName = currentUser.Name;
+
+    // Get only upcoming duties (from now onwards)
+    var now = new Date();
+    var result = scheduleService.getSchedule(facultyEmail, {
+      startDate: now.toISOString()
+    });
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error
+      };
+    }
+
+    // Filter to only future events and sort by start date
+    var upcomingEvents = result.events.filter(function(event) {
+      return new Date(event.StartDateTime) > now;
+    });
+
+    upcomingEvents.sort(function(a, b) {
+      return new Date(a.StartDateTime) - new Date(b.StartDateTime);
+    });
+
+    Logger.info('Faculty schedule data retrieved', {
+      email: facultyEmail,
+      eventCount: upcomingEvents.length
+    });
+
+    return {
+      success: true,
+      facultyEmail: facultyEmail,
+      facultyName: facultyName,
+      events: upcomingEvents
+    };
+  } catch (e) {
+    Logger.error('Failed to get faculty schedule data', { error: e.toString() });
+    return {
+      success: false,
+      error: e.toString()
+    };
   }
 }
