@@ -16,6 +16,8 @@ This system provides a complete persistent data layer and runtime environment fo
 
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Step-by-step setup instructions (~20 min)
 - **[Technical Documentation](README_APPS_SCRIPT.md)** - API reference and usage examples
+- **[Bulk Upload Guide](BULK_UPLOAD_GUIDE.md)** - User guide for bulk data upload
+- **[Bulk Upload Implementation](BULK_UPLOAD_IMPLEMENTATION.md)** - Technical implementation details
 - **[Implementation Summary](IMPLEMENTATION_SUMMARY.md)** - Acceptance criteria verification
 
 ## 🚀 Quick Start
@@ -32,6 +34,7 @@ See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed instructions.
 
 - **SheetManager** - Singleton for data operations (append, update, query)
 - **AuthService** - User authentication and role-based authorization
+- **BulkUploadService** - Bulk data upload with parsing, validation, and fuzzy matching
 - **Logger** - Structured logging with severity levels
 - **Setup** - Initialization and testing utilities
 
@@ -39,6 +42,11 @@ See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed instructions.
 
 - ✅ Automated workbook initialization
 - ✅ Role-based access control (Admin/Faculty)
+- ✅ **Bulk upload for 50+ faculty and 100+ events**
+- ✅ **Smart date parsing with ambiguity detection**
+- ✅ **Fuzzy faculty name matching (85%+ confidence)**
+- ✅ **Real-time validation with clear error messages**
+- ✅ **Time overlap detection for scheduling**
 - ✅ Complete error logging and audit trail
 - ✅ Built-in test functions
 - ✅ Professional UI with custom menu

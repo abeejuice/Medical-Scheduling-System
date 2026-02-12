@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 24px;
+    }
+
+    h1 {
+      color: #1a73e8;
+      margin-bottom: 8px;
+      font-size: 24px;
+    }
+
+    .subtitle {
+      color: #5f6368;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+
+    .section {
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #202124;
+    }
+
+    .data-type-selector {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .data-type-btn {
+      padding: 10px 20px;
+      border: 2px solid #dadce0;
+      background-color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .data-type-btn:hover {
+      border-color: #1a73e8;
+      background-color: #f1f3f4;
+    }
+
+    .data-type-btn.active {
+      border-color: #1a73e8;
+      background-color: #e8f0fe;
+      color: #1a73e8;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      padding: 12px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      resize: vertical;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
+    }
+
+    .helper-text {
+      font-size: 12px;
+      color: #5f6368;
+      margin-top: 8px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .btn {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background-color: #1a73e8;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #1765cc;
+    }
+
+    .btn-primary:disabled {
+      background-color: #dadce0;
+      color: #9aa0a6;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background-color: white;
+      color: #1a73e8;
+      border: 1px solid #dadce0;
+    }
+
+    .btn-secondary:hover {
+      background-color: #f1f3f4;
+    }
+
+    .btn-success {
+      background-color: #1e8e3e;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background-color: #188038;
+    }
+
+    .btn-success:disabled {
+      background-color: #dadce0;
+      color: #9aa0a6;
+      cursor: not-allowed;
+    }
+
+    #previewSection {
+      display: none;
+    }
+
+    .summary-box {
+      background-color: #e8f0fe;
+      border-left: 4px solid #1a73e8;
+      padding: 16px;
+      margin-bottom: 16px;
+      border-radius: 4px;
+    }
+
+    .summary-box.warning {
+      background-color: #fef7e0;
+      border-left-color: #f9ab00;
+    }
+
+    .summary-box.error {
+      background-color: #fce8e6;
+      border-left-color: #d93025;
+    }
+
+    .summary-box.success {
+      background-color: #e6f4ea;
+      border-left-color: #1e8e3e;
+    }
+
+    .summary-stats {
+      display: flex;
+      gap: 24px;
+      font-size: 14px;
+    }
+
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stat-label {
+      color: #5f6368;
+    }
+
+    .stat-value {
+      font-weight: 600;
+      font-size: 18px;
+    }
+
+    .stat-value.valid {
+      color: #1e8e3e;
+    }
+
+    .stat-value.invalid {
+      color: #d93025;
+    }
+
+    .preview-table-container {
+      overflow-x: auto;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      margin-top: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th {
+      background-color: #f1f3f4;
+      padding: 12px 8px;
+      text-align: left;
+      font-weight: 600;
+      color: #202124;
+      border-bottom: 2px solid #dadce0;
+      position: sticky;
+      top: 0;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #e8eaed;
+    }
+
+    tr.valid {
+      background-color: white;
+    }
+
+    tr.invalid {
+      background-color: #fce8e6;
+    }
+
+    tr.warning {
+      background-color: #fef7e0;
+    }
+
+    .row-number {
+      font-weight: 600;
+      color: #5f6368;
+      text-align: center;
+      width: 50px;
+    }
+
+    .status-cell {
+      width: 80px;
+      text-align: center;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge.valid {
+      background-color: #e6f4ea;
+      color: #1e8e3e;
+    }
+
+    .status-badge.invalid {
+      background-color: #fce8e6;
+      color: #d93025;
+    }
+
+    .status-badge.warning {
+      background-color: #fef7e0;
+      color: #e37400;
+    }
+
+    .messages-cell {
+      max-width: 300px;
+    }
+
+    .error-msg {
+      color: #d93025;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .warning-msg {
+      color: #e37400;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      color: #5f6368;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #1a73e8;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .result-section {
+      display: none;
+    }
+
+    .template-link {
+      color: #1a73e8;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    .template-link:hover {
+      text-decoration: underline;
+    }
+
+    .parse-time {
+      font-size: 12px;
+      color: #5f6368;
+      margin-left: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📋 Bulk Upload</h1>
+    <p class="subtitle">Upload faculty members and events in bulk from Word tables or CSV data</p>
+
+    <!-- Step 1: Select Data Type -->
+    <div class="section">
+      <div class="section-title">1. Select Data Type</div>
+      <div class="data-type-selector">
+        <button class="data-type-btn active" onclick="selectDataType('faculty')">
+          👥 Faculty Members
+        </button>
+        <button class="data-type-btn" onclick="selectDataType('events')">
+          📅 Events/Schedules
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2: Paste Data -->
+    <div class="section">
+      <div class="section-title">2. Paste Your Data</div>
+      <textarea id="dataInput" placeholder="Paste your table data here (from Word, Excel, or CSV)..."></textarea>
+      <div class="helper-text">
+        💡 <strong>Tip:</strong> Copy a table from Word/Excel and paste it here.
+        First row should be headers.
+        <a href="#" class="template-link" onclick="showTemplate(); return false;">View templates</a>
+      </div>
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="parseData()" id="parseBtn">
+          🔍 Parse & Preview
+        </button>
+        <button class="btn btn-secondary" onclick="clearData()">
+          🗑️ Clear
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <span>Processing data...</span>
+    </div>
+
+    <!-- Step 3: Preview & Validate -->
+    <div class="section" id="previewSection">
+      <div class="section-title">3. Review & Validate</div>
+
+      <div id="summaryBox"></div>
+
+      <div class="preview-table-container">
+        <table id="previewTable">
+          <thead id="previewTableHead"></thead>
+          <tbody id="previewTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="button-group">
+        <button class="btn btn-success" onclick="commitData()" id="commitBtn">
+          ✅ Commit Valid Rows
+        </button>
+        <button class="btn btn-secondary" onclick="backToEdit()">
+          ← Back to Edit
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 4: Result -->
+    <div class="section result-section" id="resultSection">
+      <div class="section-title">4. Upload Result</div>
+      <div id="resultBox"></div>
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="resetForm()">
+          📋 Upload More Data
+        </button>
+        <button class="btn btn-secondary" onclick="google.script.host.close()">
+          ✓ Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentDataType = 'faculty';
+    let previewData = null;
+
+    function selectDataType(type) {
+      currentDataType = type;
+      document.querySelectorAll('.data-type-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      document.getElementById('previewSection').style.display = 'none';
+      document.getElementById('resultSection').style.display = 'none';
+    }
+
+    function showTemplate() {
+      let template = '';
+      if (currentDataType === 'faculty') {
+        template = 'Faculty Template:\n\n' +
+          'Email\tName\tRole\tDepartment\tContactNumber\tStatus\n' +
+          'john.smith@example.com\tDr. John Smith\tFaculty\tCardiology\t555-0100\tActive\n' +
+          'jane.doe@example.com\tDr. Jane Doe\tAdmin\tSurgery\t555-0101\tActive';
+      } else {
+        template = 'Events Template:\n\n' +
+          'FacultyEmail\tEventType\tStartDateTime\tEndDateTime\tLocation\tDescription\n' +
+          'john.smith@example.com\tClinic\t2024-02-15 09:00\t2024-02-15 12:00\tRoom 101\tMorning Clinic\n' +
+          'jane.doe@example.com\tSurgery\t2024-02-15 14:00\t2024-02-15 17:00\tOR 3\tScheduled Surgery';
+      }
+      alert(template);
+    }
+
+    function clearData() {
+      document.getElementById('dataInput').value = '';
+      document.getElementById('previewSection').style.display = 'none';
+      document.getElementById('resultSection').style.display = 'none';
+      previewData = null;
+    }
+
+    function parseData() {
+      const rawData = document.getElementById('dataInput').value;
+      if (!rawData || rawData.trim().length === 0) {
+        alert('Please paste some data first');
+        return;
+      }
+
+      showLoading(true);
+      document.getElementById('parseBtn').disabled = true;
+
+      google.script.run
+        .withSuccessHandler(onPreviewSuccess)
+        .withFailureHandler(onPreviewFailure)
+        .previewBulkData(rawData, currentDataType);
+    }
+
+    function onPreviewSuccess(result) {
+      showLoading(false);
+      document.getElementById('parseBtn').disabled = false;
+
+      if (!result.success) {
+        alert('Error: ' + result.error);
+        return;
+      }
+
+      previewData = result;
+      renderPreview(result);
+      document.getElementById('previewSection').style.display = 'block';
+      document.getElementById('previewSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function onPreviewFailure(error) {
+      showLoading(false);
+      document.getElementById('parseBtn').disabled = false;
+      alert('Error: ' + error.message);
+    }
+
+    function renderPreview(data) {
+      // Render summary
+      const summaryBox = document.getElementById('summaryBox');
+      let summaryClass = 'summary-box';
+      if (data.summary.invalid > 0) {
+        summaryClass += ' warning';
+      } else {
+        summaryClass += ' success';
+      }
+
+      summaryBox.className = summaryClass;
+      summaryBox.innerHTML = `
+        <div class="summary-stats">
+          <div class="stat">
+            <span class="stat-label">Total Rows:</span>
+            <span class="stat-value">${data.summary.total}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Valid:</span>
+            <span class="stat-value valid">${data.summary.valid}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Invalid:</span>
+            <span class="stat-value invalid">${data.summary.invalid}</span>
+          </div>
+          <div class="parse-time">
+            ⚡ Parsed in ${data.summary.parseTime}ms
+          </div>
+        </div>
+      `;
+
+      // Render table headers
+      const thead = document.getElementById('previewTableHead');
+      let headerHtml = '<tr><th>#</th><th>Status</th>';
+      data.headers.forEach(h => {
+        headerHtml += `<th>${h}</th>`;
+      });
+      headerHtml += '<th>Messages</th></tr>';
+      thead.innerHTML = headerHtml;
+
+      // Render table rows
+      const tbody = document.getElementById('previewTableBody');
+      let rowsHtml = '';
+      data.rows.forEach(row => {
+        let rowClass = row.valid ? 'valid' : 'invalid';
+        if (row.warnings.length > 0 && row.errors.length === 0) {
+          rowClass = 'warning';
+        }
+
+        let statusBadge = row.valid ?
+          '<span class="status-badge valid">Valid</span>' :
+          '<span class="status-badge invalid">Invalid</span>';
+        if (row.warnings.length > 0 && row.errors.length === 0) {
+          statusBadge = '<span class="status-badge warning">Warning</span>';
+        }
+
+        rowsHtml += `<tr class="${rowClass}">`;
+        rowsHtml += `<td class="row-number">${row.rowNumber}</td>`;
+        rowsHtml += `<td class="status-cell">${statusBadge}</td>`;
+
+        row.rawData.forEach(cell => {
+          rowsHtml += `<td>${escapeHtml(cell || '')}</td>`;
+        });
+
+        // Messages column
+        let messages = '';
+        row.errors.forEach(err => {
+          messages += `<div class="error-msg">❌ ${escapeHtml(err)}</div>`;
+        });
+        row.warnings.forEach(warn => {
+          messages += `<div class="warning-msg">⚠️ ${escapeHtml(warn)}</div>`;
+        });
+        if (!messages) messages = '<span style="color: #1e8e3e;">✓ OK</span>';
+
+        rowsHtml += `<td class="messages-cell">${messages}</td>`;
+        rowsHtml += '</tr>';
+      });
+      tbody.innerHTML = rowsHtml;
+
+      // Enable/disable commit button
+      document.getElementById('commitBtn').disabled = data.summary.valid === 0;
+    }
+
+    function backToEdit() {
+      document.getElementById('previewSection').style.display = 'none';
+    }
+
+    function commitData() {
+      if (!previewData) {
+        alert('No data to commit');
+        return;
+      }
+
+      if (!confirm(`Commit ${previewData.summary.valid} valid rows to the database?\n\n${previewData.summary.invalid} invalid rows will be skipped.`)) {
+        return;
+      }
+
+      showLoading(true);
+      document.getElementById('commitBtn').disabled = true;
+
+      google.script.run
+        .withSuccessHandler(onCommitSuccess)
+        .withFailureHandler(onCommitFailure)
+        .commitBulkData(previewData.rows, currentDataType);
+    }
+
+    function onCommitSuccess(result) {
+      showLoading(false);
+      document.getElementById('commitBtn').disabled = false;
+
+      if (!result.success) {
+        alert('Error: ' + result.error);
+        return;
+      }
+
+      // Show result
+      const resultBox = document.getElementById('resultBox');
+      resultBox.className = 'summary-box success';
+      resultBox.innerHTML = `
+        <h3 style="margin-bottom: 12px; color: #1e8e3e;">✅ Upload Complete!</h3>
+        <div class="summary-stats">
+          <div class="stat">
+            <span class="stat-label">Total Processed:</span>
+            <span class="stat-value">${result.summary.total}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Successful:</span>
+            <span class="stat-value valid">${result.summary.successful}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Failed:</span>
+            <span class="stat-value invalid">${result.summary.failed}</span>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('previewSection').style.display = 'none';
+      document.getElementById('resultSection').style.display = 'block';
+      document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function onCommitFailure(error) {
+      showLoading(false);
+      document.getElementById('commitBtn').disabled = false;
+      alert('Error: ' + error.message);
+    }
+
+    function resetForm() {
+      clearData();
+      document.getElementById('resultSection').style.display = 'none';
+    }
+
+    function showLoading(show) {
+      document.getElementById('loading').style.display = show ? 'block' : 'none';
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
