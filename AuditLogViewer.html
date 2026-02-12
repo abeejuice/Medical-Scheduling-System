@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>Audit Log Viewer</title>
+  <style>
+    body {
+      font-family: 'Google Sans', Arial, sans-serif;
+      padding: 20px;
+      background-color: #f8f9fa;
+      margin: 0;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+      padding: 24px;
+    }
+
+    h1 {
+      color: #1a73e8;
+      margin-top: 0;
+      font-size: 24px;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+      padding: 16px;
+      background-color: #f1f3f4;
+      border-radius: 4px;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #5f6368;
+      margin-bottom: 4px;
+    }
+
+    input, select {
+      padding: 8px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #1a73e8;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .primary-btn {
+      background-color: #1a73e8;
+      color: white;
+    }
+
+    .primary-btn:hover {
+      background-color: #1765cc;
+    }
+
+    .secondary-btn {
+      background-color: #f1f3f4;
+      color: #3c4043;
+    }
+
+    .secondary-btn:hover {
+      background-color: #e8eaed;
+    }
+
+    .export-btn {
+      background-color: #188038;
+      color: white;
+    }
+
+    .export-btn:hover {
+      background-color: #137333;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status-message {
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .status-success {
+      background-color: #e6f4ea;
+      color: #137333;
+      border: 1px solid #c4e8d1;
+    }
+
+    .status-error {
+      background-color: #fce8e6;
+      color: #c5221f;
+      border: 1px solid #f4c7c3;
+    }
+
+    .status-info {
+      background-color: #e8f0fe;
+      color: #1967d2;
+      border: 1px solid #d2e3fc;
+    }
+
+    .log-table-container {
+      overflow-x: auto;
+      margin-top: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead {
+      background-color: #f8f9fa;
+      position: sticky;
+      top: 0;
+    }
+
+    th {
+      text-align: left;
+      padding: 12px;
+      font-weight: 500;
+      color: #5f6368;
+      border-bottom: 2px solid #e8eaed;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #e8eaed;
+      vertical-align: top;
+    }
+
+    tr:hover {
+      background-color: #f8f9fa;
+    }
+
+    .timestamp-col {
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    .event-type-col {
+      font-weight: 500;
+    }
+
+    .metadata-col {
+      max-width: 300px;
+      word-wrap: break-word;
+      font-family: monospace;
+      font-size: 11px;
+      color: #5f6368;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #5f6368;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #1a73e8;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 40px;
+      color: #5f6368;
+    }
+
+    .record-count {
+      font-size: 14px;
+      color: #5f6368;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Audit Log Viewer (Admin Only)</h1>
+
+    <div class="filters">
+      <div class="filter-group">
+        <label for="startDate">Start Date</label>
+        <input type="date" id="startDate">
+      </div>
+
+      <div class="filter-group">
+        <label for="endDate">End Date</label>
+        <input type="date" id="endDate">
+      </div>
+
+      <div class="filter-group">
+        <label for="actionType">Action Type</label>
+        <select id="actionType">
+          <option value="">All Actions</option>
+          <option value="ACCESS_GRANTED">Access Granted</option>
+          <option value="ACCESS_DENIED">Access Denied</option>
+          <option value="AUTH_SUCCESS">Auth Success</option>
+          <option value="AUTH_FAILURE">Auth Failure</option>
+          <option value="DATA_ACCESS">Data Access</option>
+          <option value="DATA_MODIFICATION">Data Modification</option>
+          <option value="BULK_UPLOAD">Bulk Upload</option>
+          <option value="UNAUTHORIZED_ATTEMPT">Unauthorized Attempt</option>
+          <option value="INPUT_VALIDATION_FAILURE">Input Validation Failure</option>
+          <option value="SCHEDULE_CHANGE">Schedule Change</option>
+          <option value="SWAP_REQUEST">Swap Request</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="resourceType">Resource Type</label>
+        <select id="resourceType">
+          <option value="">All Resources</option>
+          <option value="Schedule">Schedule</option>
+          <option value="Faculty">Faculty</option>
+          <option value="SwapRequest">Swap Request</option>
+          <option value="AuditLog">Audit Log</option>
+          <option value="BulkUpload">Bulk Upload</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="userEmail">User Email</label>
+        <input type="text" id="userEmail" placeholder="user@example.com">
+      </div>
+
+      <div class="filter-group">
+        <label for="limit">Limit</label>
+        <select id="limit">
+          <option value="100">100 records</option>
+          <option value="500">500 records</option>
+          <option value="1000">1000 records</option>
+          <option value="">All records</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="button-group">
+      <button class="primary-btn" onclick="loadAuditLogs()">🔍 Query Logs</button>
+      <button class="secondary-btn" onclick="clearFilters()">🔄 Clear Filters</button>
+      <button class="export-btn" onclick="exportToCSV()" id="exportBtn" disabled>📥 Export to CSV</button>
+    </div>
+
+    <div id="statusMessage" class="status-message"></div>
+
+    <div id="recordCount" class="record-count" style="display: none;"></div>
+
+    <div id="loadingIndicator" class="loading" style="display: none;">
+      <div class="spinner"></div>
+      <div>Loading audit logs...</div>
+    </div>
+
+    <div id="noResults" class="no-results" style="display: none;">
+      <p>No audit logs found matching your filters.</p>
+      <p>Try adjusting your filter criteria or click "Query Logs" to load all records.</p>
+    </div>
+
+    <div id="logTableContainer" class="log-table-container" style="display: none;">
+      <table id="logTable">
+        <thead>
+          <tr>
+            <th class="timestamp-col">Timestamp</th>
+            <th class="event-type-col">Event Type</th>
+            <th>Message</th>
+            <th>User Email</th>
+            <th class="metadata-col">Metadata</th>
+          </tr>
+        </thead>
+        <tbody id="logTableBody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let currentLogs = [];
+
+    // Set default date range (last 30 days)
+    window.onload = function() {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+
+      document.getElementById('endDate').valueAsDate = endDate;
+      document.getElementById('startDate').valueAsDate = startDate;
+
+      // Auto-load logs on open
+      loadAuditLogs();
+    };
+
+    function showStatus(message, type) {
+      const statusDiv = document.getElementById('statusMessage');
+      statusDiv.textContent = message;
+      statusDiv.className = 'status-message status-' + type;
+      statusDiv.style.display = 'block';
+
+      setTimeout(() => {
+        statusDiv.style.display = 'none';
+      }, 5000);
+    }
+
+    function showLoading(show) {
+      document.getElementById('loadingIndicator').style.display = show ? 'block' : 'none';
+      document.getElementById('logTableContainer').style.display = 'none';
+      document.getElementById('noResults').style.display = 'none';
+      document.getElementById('recordCount').style.display = 'none';
+    }
+
+    function clearFilters() {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+
+      document.getElementById('startDate').valueAsDate = startDate;
+      document.getElementById('endDate').valueAsDate = endDate;
+      document.getElementById('actionType').value = '';
+      document.getElementById('resourceType').value = '';
+      document.getElementById('userEmail').value = '';
+      document.getElementById('limit').value = '100';
+    }
+
+    function loadAuditLogs() {
+      showLoading(true);
+
+      const filters = {
+        startDate: document.getElementById('startDate').value || null,
+        endDate: document.getElementById('endDate').value || null,
+        actionType: document.getElementById('actionType').value || null,
+        resourceType: document.getElementById('resourceType').value || null,
+        userEmail: document.getElementById('userEmail').value || null,
+        limit: document.getElementById('limit').value ? parseInt(document.getElementById('limit').value) : null
+      };
+
+      google.script.run
+        .withSuccessHandler(onLogsLoaded)
+        .withFailureHandler(onError)
+        .queryAuditLogs(filters);
+    }
+
+    function onLogsLoaded(result) {
+      showLoading(false);
+
+      if (!result.success) {
+        showStatus('Error: ' + result.error, 'error');
+        return;
+      }
+
+      currentLogs = result.logs || [];
+
+      if (currentLogs.length === 0) {
+        document.getElementById('noResults').style.display = 'block';
+        document.getElementById('exportBtn').disabled = true;
+        return;
+      }
+
+      // Show record count
+      const countDiv = document.getElementById('recordCount');
+      countDiv.textContent = `Showing ${currentLogs.length} audit log record${currentLogs.length === 1 ? '' : 's'}`;
+      countDiv.style.display = 'block';
+
+      // Render table
+      const tbody = document.getElementById('logTableBody');
+      tbody.innerHTML = '';
+
+      currentLogs.forEach(log => {
+        const row = tbody.insertRow();
+
+        // Timestamp
+        const timestampCell = row.insertCell(0);
+        timestampCell.className = 'timestamp-col';
+        timestampCell.textContent = formatTimestamp(log.Timestamp);
+
+        // Event Type
+        const eventTypeCell = row.insertCell(1);
+        eventTypeCell.className = 'event-type-col';
+        eventTypeCell.textContent = log.Severity || 'N/A';
+
+        // Message
+        const messageCell = row.insertCell(2);
+        messageCell.textContent = log.Message || 'N/A';
+
+        // User Email
+        const userCell = row.insertCell(3);
+        userCell.textContent = log.UserEmail || 'unknown';
+
+        // Metadata
+        const metadataCell = row.insertCell(4);
+        metadataCell.className = 'metadata-col';
+        metadataCell.textContent = log.Metadata || '';
+      });
+
+      document.getElementById('logTableContainer').style.display = 'block';
+      document.getElementById('exportBtn').disabled = false;
+      showStatus('Successfully loaded ' + currentLogs.length + ' audit log records', 'success');
+    }
+
+    function onError(error) {
+      showLoading(false);
+      showStatus('Error: ' + error.message, 'error');
+    }
+
+    function formatTimestamp(timestamp) {
+      if (!timestamp) return 'N/A';
+      const date = new Date(timestamp);
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+
+    function exportToCSV() {
+      if (currentLogs.length === 0) {
+        showStatus('No logs to export', 'error');
+        return;
+      }
+
+      showStatus('Exporting audit logs to CSV...', 'info');
+
+      const filters = {
+        startDate: document.getElementById('startDate').value || null,
+        endDate: document.getElementById('endDate').value || null,
+        actionType: document.getElementById('actionType').value || null,
+        resourceType: document.getElementById('resourceType').value || null,
+        userEmail: document.getElementById('userEmail').value || null,
+        limit: document.getElementById('limit').value ? parseInt(document.getElementById('limit').value) : null
+      };
+
+      google.script.run
+        .withSuccessHandler(onCSVExported)
+        .withFailureHandler(onError)
+        .exportAuditLogsToCSV(filters);
+    }
+
+    function onCSVExported(result) {
+      if (!result.success) {
+        showStatus('Error exporting CSV: ' + result.error, 'error');
+        return;
+      }
+
+      // Create download link
+      const blob = new Blob([result.csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'audit_logs_' + new Date().toISOString().split('T')[0] + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      showStatus('Successfully exported ' + result.recordCount + ' records to CSV', 'success');
+    }
+  </script>
+</body>
+</html>

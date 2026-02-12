@@ -186,11 +186,11 @@ var ScheduleService = (function() {
       // Sanitize all update values
       var sanitizedUpdates = SecurityUtils.sanitizeObject(updates);
 
-      // Log the modification
-      this.auditService.logDataModification('Schedule', 'update', {
-        eventId: eventId,
+      // Log the modification with enhanced schedule change logging
+      this.auditService.logScheduleChange('update', eventId, {
         facultyEmail: event.FacultyEmail,
-        updates: JSON.stringify(sanitizedUpdates)
+        updates: JSON.stringify(sanitizedUpdates),
+        modifiedBy: currentUserEmail
       });
 
       // Perform the update
@@ -257,11 +257,11 @@ var ScheduleService = (function() {
         };
       }
 
-      // Log the deletion
-      this.auditService.logDataModification('Schedule', 'delete', {
-        eventId: eventId,
+      // Log the deletion with enhanced schedule change logging
+      this.auditService.logScheduleChange('delete', eventId, {
         facultyEmail: event.FacultyEmail,
-        eventType: event.EventType
+        eventType: event.EventType,
+        deletedBy: currentUserEmail
       });
 
       // Soft delete by setting status to Inactive
@@ -354,11 +354,11 @@ var ScheduleService = (function() {
       // Append to sheet
       this.sheetManager.appendRow('Schedule', eventRow);
 
-      // Log the creation
-      this.auditService.logDataModification('Schedule', 'create', {
-        eventId: eventId,
+      // Log the creation with enhanced schedule change logging
+      this.auditService.logScheduleChange('create', eventId, {
         facultyEmail: facultyEmail,
-        eventType: sanitizedData.EventType
+        eventType: sanitizedData.EventType,
+        createdBy: currentUserEmail
       });
 
       return {
