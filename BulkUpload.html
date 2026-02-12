@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      color: #1a73e8;
+      margin-bottom: 10px;
+      font-size: 24px;
+    }
+
+    .subtitle {
+      color: #5f6368;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-size: 14px;
+      font-weight: 500;
+      color: #5f6368;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s;
+    }
+
+    .tab.active {
+      color: #1a73e8;
+      border-bottom-color: #1a73e8;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .input-section {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: #202124;
+      font-size: 14px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 150px;
+      padding: 12px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      resize: vertical;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    button {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #1a73e8;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1557b0;
+    }
+
+    .btn-secondary {
+      background: #f1f3f4;
+      color: #202124;
+    }
+
+    .btn-secondary:hover {
+      background: #e8eaed;
+    }
+
+    .btn-success {
+      background: #1e8e3e;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #188038;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .preview-section {
+      margin-top: 30px;
+      display: none;
+    }
+
+    .preview-section.visible {
+      display: block;
+    }
+
+    .stats {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+
+    .stat {
+      flex: 1;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #5f6368;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 600;
+      color: #202124;
+    }
+
+    .stat-value.valid {
+      color: #1e8e3e;
+    }
+
+    .stat-value.invalid {
+      color: #d93025;
+    }
+
+    .stat-value.warning {
+      color: #f9ab00;
+    }
+
+    .table-container {
+      max-height: 500px;
+      overflow: auto;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #f8f9fa;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #202124;
+      border-bottom: 2px solid #dadce0;
+      z-index: 10;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #f1f3f4;
+    }
+
+    tr.valid {
+      background: #e6f4ea;
+    }
+
+    tr.invalid {
+      background: #fce8e6;
+    }
+
+    tr.warning {
+      background: #fef7e0;
+    }
+
+    .status-icon {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 20px;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .status-icon.valid {
+      background: #1e8e3e;
+      color: white;
+    }
+
+    .status-icon.invalid {
+      background: #d93025;
+      color: white;
+    }
+
+    .status-icon.warning {
+      background: #f9ab00;
+      color: white;
+    }
+
+    .message-list {
+      margin-top: 5px;
+      padding-left: 0;
+      list-style: none;
+    }
+
+    .message-list li {
+      font-size: 12px;
+      padding: 3px 0;
+    }
+
+    .error-message {
+      color: #d93025;
+    }
+
+    .warning-message {
+      color: #f9ab00;
+    }
+
+    .info-message {
+      color: #1a73e8;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #5f6368;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #1a73e8;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .success-banner {
+      background: #e6f4ea;
+      border: 1px solid #1e8e3e;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .success-banner.visible {
+      display: block;
+    }
+
+    .success-banner h3 {
+      color: #1e8e3e;
+      margin-bottom: 8px;
+    }
+
+    .help-text {
+      font-size: 12px;
+      color: #5f6368;
+      margin-top: 5px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+      margin-left: 5px;
+    }
+
+    .badge.ambiguous {
+      background: #fef7e0;
+      color: #f9ab00;
+    }
+
+    .badge.fuzzy {
+      background: #e8f0fe;
+      color: #1a73e8;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 Bulk Upload</h1>
+    <p class="subtitle">Upload faculty and events from Word table data</p>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('faculty')">Faculty Upload</button>
+      <button class="tab" onclick="switchTab('events')">Events Upload</button>
+    </div>
+
+    <!-- Faculty Upload Tab -->
+    <div id="faculty-tab" class="tab-content active">
+      <div class="input-section">
+        <label for="facultyData">
+          Paste Faculty Data
+          <span class="help-text">Format: Name | Email | Department | Specialty | Role | Phone</span>
+        </label>
+        <textarea id="facultyData" placeholder="Dr. John Smith	john.smith@hospital.edu	Cardiology	Interventional	Faculty	555-1234
+Dr. Sarah Johnson	sarah.j@hospital.edu	Neurology	Pediatric	Admin	555-5678"></textarea>
+        <div class="button-group">
+          <button class="btn-primary" onclick="parseFacultyData()">Parse & Preview</button>
+          <button class="btn-secondary" onclick="clearFacultyData()">Clear</button>
+        </div>
+      </div>
+
+      <div id="facultyPreview" class="preview-section">
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">Total Rows</div>
+            <div class="stat-value" id="facultyTotal">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Valid Rows</div>
+            <div class="stat-value valid" id="facultyValid">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Invalid Rows</div>
+            <div class="stat-value invalid" id="facultyInvalid">0</div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table id="facultyTable">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Line</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Department</th>
+                <th>Role</th>
+                <th>Messages</th>
+              </tr>
+            </thead>
+            <tbody id="facultyTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="button-group" style="margin-top: 20px;">
+          <button class="btn-success" onclick="commitFaculty()" id="commitFacultyBtn">
+            Commit Valid Rows
+          </button>
+          <button class="btn-secondary" onclick="hideFacultyPreview()">Cancel</button>
+        </div>
+      </div>
+
+      <div id="facultySuccess" class="success-banner"></div>
+    </div>
+
+    <!-- Events Upload Tab -->
+    <div id="events-tab" class="tab-content">
+      <div class="input-section">
+        <label for="eventsData">
+          Paste Events Data
+          <span class="help-text">Format: FacultyName | Date | StartTime | EndTime | Location | Type | Notes</span>
+        </label>
+        <textarea id="eventsData" placeholder="Dr. John Smith	01/15/2024	09:00	17:00	Clinic A	Clinic	Regular clinic
+Dr. Sarah Johnson	2024-01-16	08:00 AM	12:00 PM	ER	Emergency	On-call shift"></textarea>
+        <div class="button-group">
+          <button class="btn-primary" onclick="parseEventsData()">Parse & Preview</button>
+          <button class="btn-secondary" onclick="clearEventsData()">Clear</button>
+        </div>
+      </div>
+
+      <div id="eventsPreview" class="preview-section">
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">Total Rows</div>
+            <div class="stat-value" id="eventsTotal">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Valid Rows</div>
+            <div class="stat-value valid" id="eventsValid">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Invalid Rows</div>
+            <div class="stat-value invalid" id="eventsInvalid">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Warnings</div>
+            <div class="stat-value warning" id="eventsWarnings">0</div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table id="eventsTable">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Line</th>
+                <th>Faculty</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Location</th>
+                <th>Messages</th>
+              </tr>
+            </thead>
+            <tbody id="eventsTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="button-group" style="margin-top: 20px;">
+          <button class="btn-success" onclick="commitEvents()" id="commitEventsBtn">
+            Commit Valid Rows
+          </button>
+          <button class="btn-secondary" onclick="hideEventsPreview()">Cancel</button>
+        </div>
+      </div>
+
+      <div id="eventsSuccess" class="success-banner"></div>
+    </div>
+
+    <div id="loading" class="loading" style="display: none;">
+      <div class="spinner"></div>
+      <p>Processing data...</p>
+    </div>
+  </div>
+
+  <script>
+    let currentTab = 'faculty';
+    let parsedFacultyData = null;
+    let parsedEventsData = null;
+
+    function switchTab(tab) {
+      currentTab = tab;
+
+      // Update tab buttons
+      document.querySelectorAll('.tab').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+
+      // Update tab content
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      document.getElementById(tab + '-tab').classList.add('active');
+    }
+
+    function showLoading() {
+      document.getElementById('loading').style.display = 'block';
+    }
+
+    function hideLoading() {
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    function parseFacultyData() {
+      const data = document.getElementById('facultyData').value;
+
+      if (!data.trim()) {
+        alert('Please paste faculty data first');
+        return;
+      }
+
+      showLoading();
+
+      google.script.run
+        .withSuccessHandler(onFacultyParsed)
+        .withFailureHandler(onError)
+        .processFacultyUpload(data);
+    }
+
+    function onFacultyParsed(result) {
+      hideLoading();
+
+      if (!result.success) {
+        alert('Error: ' + result.error);
+        return;
+      }
+
+      parsedFacultyData = result;
+
+      // Update stats
+      document.getElementById('facultyTotal').textContent = result.totalRows;
+      document.getElementById('facultyValid').textContent = result.validCount;
+      document.getElementById('facultyInvalid').textContent = result.invalidCount;
+
+      // Render table
+      const tbody = document.getElementById('facultyTableBody');
+      tbody.innerHTML = '';
+
+      result.allRows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.className = row.isValid ? 'valid' : 'invalid';
+
+        const statusIcon = row.isValid ? '✓' : '✗';
+        const statusClass = row.isValid ? 'valid' : 'invalid';
+
+        const messages = [];
+        if (row.validation.errors) {
+          row.validation.errors.forEach(err => {
+            messages.push('<li class="error-message">❌ ' + err + '</li>');
+          });
+        }
+        if (row.validation.warnings) {
+          row.validation.warnings.forEach(warn => {
+            messages.push('<li class="warning-message">⚠️ ' + warn + '</li>');
+          });
+        }
+
+        tr.innerHTML = `
+          <td><span class="status-icon ${statusClass}">${statusIcon}</span></td>
+          <td>${row.lineNumber}</td>
+          <td>${row.parsed.name}</td>
+          <td>${row.parsed.email}</td>
+          <td>${row.parsed.department}</td>
+          <td>${row.parsed.role}</td>
+          <td><ul class="message-list">${messages.join('') || '<li class="info-message">✓ Valid</li>'}</ul></td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+
+      // Show preview
+      document.getElementById('facultyPreview').classList.add('visible');
+      document.getElementById('commitFacultyBtn').disabled = result.validCount === 0;
+    }
+
+    function parseEventsData() {
+      const data = document.getElementById('eventsData').value;
+
+      if (!data.trim()) {
+        alert('Please paste events data first');
+        return;
+      }
+
+      showLoading();
+
+      google.script.run
+        .withSuccessHandler(onEventsParsed)
+        .withFailureHandler(onError)
+        .processEventsUpload(data);
+    }
+
+    function onEventsParsed(result) {
+      hideLoading();
+
+      if (!result.success) {
+        alert('Error: ' + result.error);
+        return;
+      }
+
+      parsedEventsData = result;
+
+      // Update stats
+      document.getElementById('eventsTotal').textContent = result.totalRows;
+      document.getElementById('eventsValid').textContent = result.validCount;
+      document.getElementById('eventsInvalid').textContent = result.invalidCount;
+
+      let warningCount = 0;
+      result.allRows.forEach(row => {
+        if (row.validation.warnings && row.validation.warnings.length > 0) {
+          warningCount++;
+        }
+      });
+      document.getElementById('eventsWarnings').textContent = warningCount;
+
+      // Render table
+      const tbody = document.getElementById('eventsTableBody');
+      tbody.innerHTML = '';
+
+      result.allRows.forEach(row => {
+        const tr = document.createElement('tr');
+        const hasWarnings = row.validation.warnings && row.validation.warnings.length > 0;
+        tr.className = row.isValid ? (hasWarnings ? 'warning' : 'valid') : 'invalid';
+
+        const statusIcon = row.isValid ? (hasWarnings ? '!' : '✓') : '✗';
+        const statusClass = row.isValid ? (hasWarnings ? 'warning' : 'valid') : 'invalid';
+
+        const messages = [];
+        if (row.validation.errors) {
+          row.validation.errors.forEach(err => {
+            messages.push('<li class="error-message">❌ ' + err + '</li>');
+          });
+        }
+        if (row.validation.warnings) {
+          row.validation.warnings.forEach(warn => {
+            messages.push('<li class="warning-message">⚠️ ' + warn + '</li>');
+          });
+        }
+
+        let facultyDisplay = row.parsed.facultyName;
+        if (row.facultyMatch && row.facultyMatch.confidence < 100) {
+          facultyDisplay += '<span class="badge fuzzy">' + row.facultyMatch.confidence + '% match</span>';
+        }
+
+        let dateDisplay = row.parsed.date || row.parsed.dateOriginal;
+        if (row.dateAmbiguous) {
+          dateDisplay += '<span class="badge ambiguous">Ambiguous</span>';
+        }
+
+        tr.innerHTML = `
+          <td><span class="status-icon ${statusClass}">${statusIcon}</span></td>
+          <td>${row.lineNumber}</td>
+          <td>${facultyDisplay}</td>
+          <td>${dateDisplay}</td>
+          <td>${row.parsed.startTime} - ${row.parsed.endTime}</td>
+          <td>${row.parsed.location}</td>
+          <td><ul class="message-list">${messages.join('') || '<li class="info-message">✓ Valid</li>'}</ul></td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+
+      // Show preview
+      document.getElementById('eventsPreview').classList.add('visible');
+      document.getElementById('commitEventsBtn').disabled = result.validCount === 0;
+    }
+
+    function commitFaculty() {
+      if (!parsedFacultyData || parsedFacultyData.validCount === 0) {
+        alert('No valid rows to commit');
+        return;
+      }
+
+      if (!confirm('Commit ' + parsedFacultyData.validCount + ' valid faculty rows?')) {
+        return;
+      }
+
+      showLoading();
+
+      google.script.run
+        .withSuccessHandler(onFacultyCommitted)
+        .withFailureHandler(onError)
+        .commitFacultyData(parsedFacultyData.validRows);
+    }
+
+    function onFacultyCommitted(result) {
+      hideLoading();
+
+      const banner = document.getElementById('facultySuccess');
+      banner.innerHTML = `
+        <h3>✓ Success!</h3>
+        <p>Successfully added ${result.successCount} faculty members.</p>
+        ${result.failedCount > 0 ? '<p class="error-message">Failed: ' + result.failedCount + '</p>' : ''}
+      `;
+      banner.classList.add('visible');
+
+      // Clear and hide preview
+      document.getElementById('facultyData').value = '';
+      document.getElementById('facultyPreview').classList.remove('visible');
+      parsedFacultyData = null;
+
+      setTimeout(() => {
+        banner.classList.remove('visible');
+      }, 5000);
+    }
+
+    function commitEvents() {
+      if (!parsedEventsData || parsedEventsData.validCount === 0) {
+        alert('No valid rows to commit');
+        return;
+      }
+
+      if (!confirm('Commit ' + parsedEventsData.validCount + ' valid event rows?')) {
+        return;
+      }
+
+      showLoading();
+
+      google.script.run
+        .withSuccessHandler(onEventsCommitted)
+        .withFailureHandler(onError)
+        .commitEventsData(parsedEventsData.validRows);
+    }
+
+    function onEventsCommitted(result) {
+      hideLoading();
+
+      const banner = document.getElementById('eventsSuccess');
+      banner.innerHTML = `
+        <h3>✓ Success!</h3>
+        <p>Successfully added ${result.successCount} events.</p>
+        ${result.failedCount > 0 ? '<p class="error-message">Failed: ' + result.failedCount + '</p>' : ''}
+      `;
+      banner.classList.add('visible');
+
+      // Clear and hide preview
+      document.getElementById('eventsData').value = '';
+      document.getElementById('eventsPreview').classList.remove('visible');
+      parsedEventsData = null;
+
+      setTimeout(() => {
+        banner.classList.remove('visible');
+      }, 5000);
+    }
+
+    function clearFacultyData() {
+      document.getElementById('facultyData').value = '';
+      document.getElementById('facultyPreview').classList.remove('visible');
+      parsedFacultyData = null;
+    }
+
+    function clearEventsData() {
+      document.getElementById('eventsData').value = '';
+      document.getElementById('eventsPreview').classList.remove('visible');
+      parsedEventsData = null;
+    }
+
+    function hideFacultyPreview() {
+      document.getElementById('facultyPreview').classList.remove('visible');
+    }
+
+    function hideEventsPreview() {
+      document.getElementById('eventsPreview').classList.remove('visible');
+    }
+
+    function onError(error) {
+      hideLoading();
+      alert('Error: ' + error.message);
+    }
+  </script>
+</body>
+</html>
