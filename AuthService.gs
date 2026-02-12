@@ -38,6 +38,7 @@ var AuthService = (function() {
 
   /**
    * Get the current user's information from Faculty sheet
+   * SECURITY: Logs authentication attempts
    * @return {Object|null} User object or null if not found
    */
   AuthServiceClass.prototype.getCurrentUser = function() {
@@ -57,13 +58,37 @@ var AuthService = (function() {
       if (user) {
         this.currentUser = user;
         this.userRole = user.Role || Roles.GUEST;
+
+        // Log successful authentication
         Logger.info('User authenticated', {
           email: email,
           role: this.userRole
         });
+
+        try {
+          var auditService = AuditService.getInstance();
+          auditService.logAuthSuccess(this.userRole, {
+            email: email,
+            name: user.Name
+          });
+        } catch (auditError) {
+          // Continue even if audit logging fails
+          Logger.warning('Failed to log auth success', { error: auditError.toString() });
+        }
       } else {
         Logger.warning('User not found in Faculty sheet', { email: email });
         this.userRole = Roles.GUEST;
+
+        // Log authentication failure
+        try {
+          var auditService = AuditService.getInstance();
+          auditService.logAuthFailure('User not found in Faculty sheet', {
+            email: email
+          });
+        } catch (auditError) {
+          // Continue even if audit logging fails
+          Logger.warning('Failed to log auth failure', { error: auditError.toString() });
+        }
       }
 
       return this.currentUser;
@@ -127,6 +152,7 @@ var AuthService = (function() {
 
   /**
    * Require a specific role or throw error
+   * SECURITY: Logs all unauthorized access attempts
    * @param {string} role - Required role
    * @throws {Error} If user doesn't have the required role
    */
@@ -135,11 +161,27 @@ var AuthService = (function() {
       if (!this.hasRole(role)) {
         var currentRole = this.getCurrentUserRole();
         var email = this.getCurrentUserEmail();
+
         Logger.error('Unauthorized access attempt', {
           email: email,
           currentRole: currentRole,
           requiredRole: role
         });
+
+        // Log to audit service
+        try {
+          var auditService = AuditService.getInstance();
+          auditService.logUnauthorizedAttempt(
+            'role-protected-resource',
+            role,
+            currentRole,
+            { email: email }
+          );
+        } catch (auditError) {
+          // Continue even if audit logging fails
+          Logger.warning('Failed to log unauthorized attempt', { error: auditError.toString() });
+        }
+
         throw new Error('Unauthorized: ' + role + ' role required');
       }
     } catch (e) {

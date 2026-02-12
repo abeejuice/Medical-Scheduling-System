@@ -21,6 +21,7 @@ var BulkUploadService = (function() {
   /**
    * Parse pasted table data into rows and columns
    * Supports tab-delimited (from Word) and comma-separated values
+   * SECURITY: Sanitizes all input to prevent XSS attacks
    * @param {string} rawData - Pasted table data
    * @return {Object} Parsed result with headers and rows
    */
@@ -41,8 +42,10 @@ var BulkUploadService = (function() {
         delimiter = ',';
       }
 
+      // Parse headers with sanitization
       var headers = lines[0].split(delimiter).map(function(h) {
-        return h.trim().replace(/["\r]/g, '');
+        var cleaned = h.trim().replace(/["\r]/g, '');
+        return SecurityUtils.sanitizeInput(cleaned);
       });
 
       var rows = [];
@@ -50,7 +53,8 @@ var BulkUploadService = (function() {
         if (lines[i].trim().length === 0) continue;
 
         var cells = lines[i].split(delimiter).map(function(c) {
-          return c.trim().replace(/["\r]/g, '');
+          var cleaned = c.trim().replace(/["\r]/g, '');
+          return SecurityUtils.sanitizeInput(cleaned);
         });
 
         if (cells.length > 0 && cells[0].length > 0) {
@@ -255,6 +259,7 @@ var BulkUploadService = (function() {
 
   /**
    * Validate a faculty data row
+   * SECURITY: Validates and sanitizes all input, checks for XSS attempts
    * @param {Array} row - Row data array
    * @param {Array} headers - Header names
    * @return {Object} Validation result
@@ -264,32 +269,71 @@ var BulkUploadService = (function() {
     var warnings = [];
     var rowObj = {};
 
-    // Map row to object
+    // Map row to object with sanitization
     for (var i = 0; i < headers.length; i++) {
-      rowObj[headers[i]] = row[i] || '';
+      var rawValue = row[i] || '';
+      rowObj[headers[i]] = rawValue;
     }
 
-    // Required fields
+    // Validate and sanitize Email
     if (!rowObj.Email || rowObj.Email.trim().length === 0) {
       errors.push('Email is required');
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rowObj.Email)) {
-      errors.push('Invalid email format');
+    } else {
+      var emailValidation = SecurityUtils.validateInput(rowObj.Email, {
+        required: true,
+        isEmail: true,
+        maxLength: 255
+      });
+      if (!emailValidation.isValid) {
+        errors = errors.concat(emailValidation.errors);
+      }
+      rowObj.Email = emailValidation.sanitized;
     }
 
+    // Validate and sanitize Name
     if (!rowObj.Name || rowObj.Name.trim().length === 0) {
       errors.push('Name is required');
+    } else {
+      var nameValidation = SecurityUtils.validateInput(rowObj.Name, {
+        required: true,
+        maxLength: 255
+      });
+      if (!nameValidation.isValid) {
+        errors = errors.concat(nameValidation.errors);
+        AuditService.getInstance().logInputValidationFailure('Name', nameValidation.errors.join(', '), {
+          value: rowObj.Name.substring(0, 50)
+        });
+      }
+      rowObj.Name = nameValidation.sanitized;
     }
 
+    // Validate and sanitize Role
     if (!rowObj.Role || rowObj.Role.trim().length === 0) {
       errors.push('Role is required');
-    } else if (rowObj.Role !== 'Admin' && rowObj.Role !== 'Faculty') {
-      errors.push('Role must be "Admin" or "Faculty"');
+    } else {
+      rowObj.Role = SecurityUtils.sanitizeInput(rowObj.Role);
+      if (rowObj.Role !== 'Admin' && rowObj.Role !== 'Faculty') {
+        errors.push('Role must be "Admin" or "Faculty"');
+      }
     }
 
-    // Check for duplicates
-    var existing = this.sheetManager.findRow('Faculty', { Email: rowObj.Email });
-    if (existing) {
-      errors.push('Email already exists in system');
+    // Sanitize optional fields
+    if (rowObj.Department) {
+      rowObj.Department = SecurityUtils.sanitizeInput(rowObj.Department);
+    }
+    if (rowObj.ContactNumber) {
+      rowObj.ContactNumber = SecurityUtils.sanitizeInput(rowObj.ContactNumber);
+    }
+    if (rowObj.Status) {
+      rowObj.Status = SecurityUtils.sanitizeInput(rowObj.Status);
+    }
+
+    // Check for duplicates only if email is valid
+    if (errors.length === 0) {
+      var existing = this.sheetManager.findRow('Faculty', { Email: rowObj.Email });
+      if (existing) {
+        errors.push('Email already exists in system');
+      }
     }
 
     return {
@@ -302,6 +346,7 @@ var BulkUploadService = (function() {
 
   /**
    * Validate an event data row
+   * SECURITY: Validates and sanitizes all input, checks for XSS attempts
    * @param {Array} row - Row data array
    * @param {Array} headers - Header names
    * @return {Object} Validation result
@@ -311,9 +356,10 @@ var BulkUploadService = (function() {
     var warnings = [];
     var rowObj = {};
 
-    // Map row to object
+    // Map row to object with sanitization
     for (var i = 0; i < headers.length; i++) {
-      rowObj[headers[i]] = row[i] || '';
+      var rawValue = row[i] || '';
+      rowObj[headers[i]] = SecurityUtils.sanitizeInput(rawValue);
     }
 
     // Validate faculty email or name
@@ -396,9 +442,35 @@ var BulkUploadService = (function() {
       }
     }
 
-    // Required fields
+    // Required fields with validation
     if (!rowObj.EventType || rowObj.EventType.trim().length === 0) {
       errors.push('EventType is required');
+    } else {
+      var eventTypeValidation = SecurityUtils.validateInput(rowObj.EventType, {
+        required: true,
+        maxLength: 255
+      });
+      if (!eventTypeValidation.isValid) {
+        errors = errors.concat(eventTypeValidation.errors);
+        AuditService.getInstance().logInputValidationFailure('EventType', eventTypeValidation.errors.join(', '), {
+          value: rowObj.EventType.substring(0, 50)
+        });
+      }
+    }
+
+    // Validate optional text fields
+    if (rowObj.Location) {
+      var locationValidation = SecurityUtils.validateInput(rowObj.Location, { maxLength: 500 });
+      if (!locationValidation.isValid) {
+        errors = errors.concat(locationValidation.errors);
+      }
+    }
+
+    if (rowObj.Description) {
+      var descValidation = SecurityUtils.validateInput(rowObj.Description, { maxLength: 2000 });
+      if (!descValidation.isValid) {
+        errors = errors.concat(descValidation.errors);
+      }
     }
 
     return {
