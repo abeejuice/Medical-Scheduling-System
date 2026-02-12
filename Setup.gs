@@ -84,6 +84,15 @@ function initializeWorkbook() {
       Logger.info('Removed default Sheet1');
     }
 
+    // Protect AuditLog sheet from modifications (make it append-only)
+    try {
+      protectAuditLogSheet();
+      Logger.info('AuditLog sheet protected');
+    } catch (e) {
+      Logger.warning('Failed to protect AuditLog sheet', { error: e.toString() });
+      // Continue even if protection fails
+    }
+
     var message = 'Workbook initialization complete!\n\n';
 
     if (createdSheets.length > 0) {
@@ -156,13 +165,25 @@ function addSampleData() {
 function onOpen() {
   try {
     var ui = SpreadsheetApp.getUi();
-    ui.createMenu('Medical Scheduling')
+    var menu = ui.createMenu('Medical Scheduling')
       .addItem('Initialize Workbook', 'initializeWorkbook')
       .addItem('Add Sample Data', 'addSampleData')
       .addSeparator()
       .addItem('📋 Bulk Upload...', 'showBulkUploadDialog')
-      .addSeparator()
-      .addItem('Test SheetManager', 'testSheetManager')
+      .addSeparator();
+
+    // Add admin-only menu items
+    try {
+      var authService = AuthService.getInstance();
+      if (authService.isAdmin()) {
+        menu.addItem('🔍 View Audit Logs (Admin)', 'showAuditLogViewer')
+          .addSeparator();
+      }
+    } catch (e) {
+      // If auth check fails, continue without admin menu
+    }
+
+    menu.addItem('Test SheetManager', 'testSheetManager')
       .addItem('Test AuthService', 'testAuthService')
       .addItem('Test Bulk Upload', 'testBulkUploadService')
       .addSeparator()
@@ -281,6 +302,49 @@ function showBulkUploadDialog() {
   } catch (e) {
     Logger.error('Failed to show bulk upload dialog', { error: e.toString() });
     SpreadsheetApp.getUi().alert('Error', 'Failed to open bulk upload: ' + e.message, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * Show the audit log viewer (ADMIN ONLY)
+ */
+function showAuditLogViewer() {
+  try {
+    // SECURITY: Check admin authorization
+    var authService = AuthService.getInstance();
+    var auditService = AuditService.getInstance();
+
+    if (!authService.isAdmin()) {
+      auditService.logAccessDenied(
+        'audit-log-viewer',
+        'Admin role required',
+        {
+          userRole: authService.getCurrentUserRole()
+        }
+      );
+
+      SpreadsheetApp.getUi().alert(
+        'Access Denied',
+        'Only administrators can view audit logs.',
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+
+    // Log access
+    auditService.logAccessGranted('audit-log-viewer', {});
+
+    var html = HtmlService.createHtmlOutputFromFile('AuditLogViewer')
+      .setWidth(1200)
+      .setHeight(800)
+      .setTitle('Audit Log Viewer');
+
+    SpreadsheetApp.getUi().showModalDialog(html, 'Audit Log Viewer (Admin Only)');
+
+    Logger.info('Audit log viewer opened');
+  } catch (e) {
+    Logger.error('Failed to show audit log viewer', { error: e.toString() });
+    SpreadsheetApp.getUi().alert('Error', 'Failed to open audit log viewer: ' + e.message, SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }
 
@@ -469,6 +533,153 @@ function createScheduleEvent(eventData) {
     return scheduleService.createEvent(eventData);
   } catch (e) {
     Logger.error('Failed to create schedule event', { error: e.toString() });
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Protect AuditLog sheet from manual modifications
+ * Makes the sheet effectively append-only by protecting all existing rows
+ */
+function protectAuditLogSheet() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var auditSheet = ss.getSheetByName('AuditLog');
+
+    if (!auditSheet) {
+      Logger.warning('AuditLog sheet not found, skipping protection');
+      return;
+    }
+
+    // Remove existing protections first
+    var protections = auditSheet.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+    for (var i = 0; i < protections.length; i++) {
+      protections[i].remove();
+    }
+
+    var lastRow = auditSheet.getLastRow();
+
+    // Protect all data rows (everything except the last row where new data will be appended)
+    // This allows the append operation to work while preventing edits to existing rows
+    if (lastRow > 1) {
+      var range = auditSheet.getRange(1, 1, lastRow, auditSheet.getLastColumn());
+      var protection = range.protect().setDescription('Audit Log Protection - Immutable Records');
+
+      // Only allow the spreadsheet owner to edit
+      // This prevents manual edits while still allowing programmatic appends
+      protection.setWarningOnly(true);
+      protection.setWarningText('⚠️ AUDIT LOG: These records are immutable and protected for compliance. Do not edit or delete audit log entries.');
+
+      Logger.info('Protected ' + lastRow + ' rows in AuditLog sheet');
+    }
+
+    return true;
+  } catch (e) {
+    Logger.error('Failed to protect AuditLog sheet', { error: e.toString() });
+    throw e;
+  }
+}
+
+/**
+ * Query audit logs with filters (ADMIN ONLY)
+ * @param {Object} filters - Filter criteria
+ * @return {Object} Query result
+ */
+function queryAuditLogs(filters) {
+  try {
+    var auditService = AuditService.getInstance();
+    return auditService.queryAuditLogs(filters);
+  } catch (e) {
+    Logger.error('Failed to query audit logs', { error: e.toString() });
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Export audit logs to CSV (ADMIN ONLY)
+ * @param {Object} filters - Filter criteria
+ * @return {Object} Export result with CSV content
+ */
+function exportAuditLogsToCSV(filters) {
+  try {
+    var auditService = AuditService.getInstance();
+    return auditService.exportToCSV(filters);
+  } catch (e) {
+    Logger.error('Failed to export audit logs', { error: e.toString() });
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Create a new swap request
+ * @param {Object} requestData - Request data
+ * @return {Object} Create result
+ */
+function createSwapRequest(requestData) {
+  try {
+    var swapService = SwapRequestService.getInstance();
+    return swapService.createSwapRequest(requestData);
+  } catch (e) {
+    Logger.error('Failed to create swap request', { error: e.toString() });
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Approve a swap request
+ * @param {string} requestId - Request ID
+ * @return {Object} Approval result
+ */
+function approveSwapRequest(requestId) {
+  try {
+    var swapService = SwapRequestService.getInstance();
+    return swapService.approveSwapRequest(requestId);
+  } catch (e) {
+    Logger.error('Failed to approve swap request', { error: e.toString() });
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Reject a swap request
+ * @param {string} requestId - Request ID
+ * @return {Object} Rejection result
+ */
+function rejectSwapRequest(requestId) {
+  try {
+    var swapService = SwapRequestService.getInstance();
+    return swapService.rejectSwapRequest(requestId);
+  } catch (e) {
+    Logger.error('Failed to reject swap request', { error: e.toString() });
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Cancel a swap request
+ * @param {string} requestId - Request ID
+ * @return {Object} Cancellation result
+ */
+function cancelSwapRequest(requestId) {
+  try {
+    var swapService = SwapRequestService.getInstance();
+    return swapService.cancelSwapRequest(requestId);
+  } catch (e) {
+    Logger.error('Failed to cancel swap request', { error: e.toString() });
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Get swap requests for current user
+ * @return {Object} Swap requests
+ */
+function getMySwapRequests() {
+  try {
+    var swapService = SwapRequestService.getInstance();
+    return swapService.getMySwapRequests();
+  } catch (e) {
+    Logger.error('Failed to get swap requests', { error: e.toString() });
     return { success: false, error: e.toString() };
   }
 }

@@ -16,7 +16,17 @@ var AuditService = (function() {
     DATA_MODIFICATION: 'DATA_MODIFICATION',
     BULK_UPLOAD: 'BULK_UPLOAD',
     UNAUTHORIZED_ATTEMPT: 'UNAUTHORIZED_ATTEMPT',
-    INPUT_VALIDATION_FAILURE: 'INPUT_VALIDATION_FAILURE'
+    INPUT_VALIDATION_FAILURE: 'INPUT_VALIDATION_FAILURE',
+    SCHEDULE_CHANGE: 'SCHEDULE_CHANGE',
+    SWAP_REQUEST: 'SWAP_REQUEST'
+  };
+
+  var ResourceType = {
+    SCHEDULE: 'Schedule',
+    FACULTY: 'Faculty',
+    SWAP_REQUEST: 'SwapRequest',
+    AUDIT_LOG: 'AuditLog',
+    BULK_UPLOAD: 'BulkUpload'
   };
 
   function AuditServiceClass() {
@@ -321,6 +331,218 @@ var AuditService = (function() {
   };
 
   /**
+   * Log schedule change event
+   * @param {string} action - Type of change (create, update, delete)
+   * @param {string} eventId - Event ID
+   * @param {Object} metadata - Additional metadata
+   */
+  AuditServiceClass.prototype.logScheduleChange = function(action, eventId, metadata) {
+    var meta = metadata || {};
+    meta.eventId = eventId;
+    meta.resourceType = ResourceType.SCHEDULE;
+
+    return this.logEvent(
+      EventType.SCHEDULE_CHANGE,
+      action + ' schedule event: ' + eventId,
+      meta
+    );
+  };
+
+  /**
+   * Log swap request event
+   * @param {string} action - Type of action (create, approve, reject, cancel)
+   * @param {string} requestId - Request ID
+   * @param {Object} metadata - Additional metadata
+   */
+  AuditServiceClass.prototype.logSwapRequest = function(action, requestId, metadata) {
+    var meta = metadata || {};
+    meta.requestId = requestId;
+    meta.resourceType = ResourceType.SWAP_REQUEST;
+
+    return this.logEvent(
+      EventType.SWAP_REQUEST,
+      action + ' swap request: ' + requestId,
+      meta
+    );
+  };
+
+  /**
+   * Query audit logs with filters (ADMIN ONLY)
+   * @param {Object} filters - Filter criteria
+   * @return {Object} { success: boolean, logs: Array, error: string }
+   */
+  AuditServiceClass.prototype.queryAuditLogs = function(filters) {
+    try {
+      // Check admin authorization
+      var authService = AuthService.getInstance();
+      if (!authService.isAdmin()) {
+        this.logAccessDenied(
+          'audit-log-query',
+          'Admin role required',
+          {
+            userRole: authService.getCurrentUserRole()
+          }
+        );
+
+        return {
+          success: false,
+          logs: [],
+          error: 'Access denied: Admin role required to query audit logs'
+        };
+      }
+
+      // Log the audit log access
+      this.logAccessGranted('audit-log-query', {
+        filters: JSON.stringify(filters)
+      });
+
+      filters = filters || {};
+
+      // Query logs with filters
+      var logs = this.sheetManager.queryRows('AuditLog', function(row) {
+        // Filter by date range
+        if (filters.startDate) {
+          var logDate = new Date(row.Timestamp);
+          var startDate = new Date(filters.startDate);
+          if (logDate < startDate) {
+            return false;
+          }
+        }
+
+        if (filters.endDate) {
+          var logDate = new Date(row.Timestamp);
+          var endDate = new Date(filters.endDate);
+          if (logDate > endDate) {
+            return false;
+          }
+        }
+
+        // Filter by action/event type
+        if (filters.actionType && row.Severity !== filters.actionType) {
+          return false;
+        }
+
+        // Filter by resource type (parsed from metadata)
+        if (filters.resourceType) {
+          try {
+            var metadata = row.Metadata ? JSON.parse(row.Metadata) : {};
+            if (metadata.resourceType !== filters.resourceType) {
+              return false;
+            }
+          } catch (e) {
+            // If metadata can't be parsed, include it in results
+          }
+        }
+
+        // Filter by user email
+        if (filters.userEmail && row.UserEmail !== filters.userEmail) {
+          return false;
+        }
+
+        return true;
+      });
+
+      // Sort by timestamp descending (most recent first)
+      logs.sort(function(a, b) {
+        return new Date(b.Timestamp) - new Date(a.Timestamp);
+      });
+
+      // Apply limit if specified
+      if (filters.limit && logs.length > filters.limit) {
+        logs = logs.slice(0, filters.limit);
+      }
+
+      return {
+        success: true,
+        logs: logs,
+        error: null
+      };
+    } catch (e) {
+      Logger.error('Failed to query audit logs', {
+        error: e.toString(),
+        filters: JSON.stringify(filters)
+      });
+      return {
+        success: false,
+        logs: [],
+        error: e.toString()
+      };
+    }
+  };
+
+  /**
+   * Export audit logs to CSV (ADMIN ONLY)
+   * @param {Object} filters - Filter criteria (same as queryAuditLogs)
+   * @return {Object} { success: boolean, csv: string, error: string }
+   */
+  AuditServiceClass.prototype.exportToCSV = function(filters) {
+    try {
+      // Check admin authorization
+      var authService = AuthService.getInstance();
+      if (!authService.isAdmin()) {
+        this.logAccessDenied(
+          'audit-log-export',
+          'Admin role required',
+          {
+            userRole: authService.getCurrentUserRole()
+          }
+        );
+
+        return {
+          success: false,
+          csv: '',
+          error: 'Access denied: Admin role required to export audit logs'
+        };
+      }
+
+      // Log the export
+      this.logAccessGranted('audit-log-export', {
+        filters: JSON.stringify(filters)
+      });
+
+      // Query logs
+      var result = this.queryAuditLogs(filters);
+      if (!result.success) {
+        return result;
+      }
+
+      var logs = result.logs;
+
+      // Build CSV
+      var csv = 'Timestamp,Event Type,Message,User Email,Metadata\n';
+
+      for (var i = 0; i < logs.length; i++) {
+        var log = logs[i];
+
+        // Escape CSV values
+        var timestamp = (log.Timestamp || '').toString().replace(/"/g, '""');
+        var severity = (log.Severity || '').toString().replace(/"/g, '""');
+        var message = (log.Message || '').toString().replace(/"/g, '""');
+        var userEmail = (log.UserEmail || '').toString().replace(/"/g, '""');
+        var metadata = (log.Metadata || '').toString().replace(/"/g, '""');
+
+        csv += '"' + timestamp + '","' + severity + '","' + message + '","' + userEmail + '","' + metadata + '"\n';
+      }
+
+      return {
+        success: true,
+        csv: csv,
+        recordCount: logs.length,
+        error: null
+      };
+    } catch (e) {
+      Logger.error('Failed to export audit logs', {
+        error: e.toString()
+      });
+      return {
+        success: false,
+        csv: '',
+        error: e.toString()
+      };
+    }
+  };
+
+  /**
    * Get singleton instance
    */
   function getInstance() {
@@ -333,6 +555,7 @@ var AuditService = (function() {
 
   return {
     getInstance: getInstance,
-    EventType: EventType
+    EventType: EventType,
+    ResourceType: ResourceType
   };
 })();
