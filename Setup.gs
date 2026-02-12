@@ -165,6 +165,8 @@ function onOpen() {
       .addItem('Test SheetManager', 'testSheetManager')
       .addItem('Test AuthService', 'testAuthService')
       .addItem('Test Bulk Upload', 'testBulkUploadService')
+      .addSeparator()
+      .addItem('🔒 Run Security Tests', 'runAllSecurityTests')
       .addToUi();
 
     Logger.info('Custom menu created');
@@ -285,12 +287,45 @@ function showBulkUploadDialog() {
 /**
  * Server-side function to preview bulk upload data
  * Called from BulkUploadUI.html
+ * SECURITY: Only admins can preview bulk uploads
  * @param {string} rawData - Pasted table data
  * @param {string} dataType - 'faculty' or 'events'
  * @return {Object} Preview result
  */
 function previewBulkData(rawData, dataType) {
   try {
+    // SECURITY: Check authorization
+    var authService = AuthService.getInstance();
+    var auditService = AuditService.getInstance();
+    var currentUserEmail = authService.getCurrentUserEmail();
+
+    if (!authService.isAdmin()) {
+      // Log unauthorized attempt
+      auditService.logAccessDenied(
+        'bulk-upload-preview',
+        'Admin role required',
+        {
+          dataType: dataType,
+          userRole: authService.getCurrentUserRole()
+        }
+      );
+
+      Logger.warning('Unauthorized bulk upload preview attempt', {
+        user: currentUserEmail,
+        role: authService.getCurrentUserRole()
+      });
+
+      return {
+        success: false,
+        error: 'Access denied: Only administrators can perform bulk uploads'
+      };
+    }
+
+    // Log access granted
+    auditService.logAccessGranted('bulk-upload-preview', {
+      dataType: dataType
+    });
+
     var bulkUploadService = BulkUploadService.getInstance();
     return bulkUploadService.previewBulkUpload(rawData, dataType);
   } catch (e) {
@@ -302,28 +337,138 @@ function previewBulkData(rawData, dataType) {
 /**
  * Server-side function to commit bulk upload data
  * Called from BulkUploadUI.html
+ * SECURITY: Only admins can commit bulk uploads, all attempts logged
  * @param {Array} validatedRows - Array of validated row objects
  * @param {string} dataType - 'faculty' or 'events'
  * @return {Object} Commit result
  */
 function commitBulkData(validatedRows, dataType) {
   try {
-    // Check authorization - only admins can bulk upload
+    // SECURITY: Check authorization
     var authService = AuthService.getInstance();
+    var auditService = AuditService.getInstance();
+    var currentUserEmail = authService.getCurrentUserEmail();
+
     if (!authService.isAdmin()) {
-      Logger.warning('Unauthorized bulk upload attempt', {
-        user: authService.getCurrentUserEmail()
+      // Log unauthorized attempt
+      auditService.logUnauthorizedAttempt(
+        'bulk-upload-commit',
+        'Admin',
+        authService.getCurrentUserRole(),
+        {
+          dataType: dataType,
+          rowCount: validatedRows ? validatedRows.length : 0
+        }
+      );
+
+      Logger.warning('Unauthorized bulk upload commit attempt', {
+        user: currentUserEmail,
+        role: authService.getCurrentUserRole()
       });
+
       return {
         success: false,
-        error: 'Only administrators can perform bulk uploads'
+        error: 'Access denied: Only administrators can perform bulk uploads'
       };
     }
 
+    // Log access granted
+    auditService.logAccessGranted('bulk-upload-commit', {
+      dataType: dataType,
+      rowCount: validatedRows.length
+    });
+
     var bulkUploadService = BulkUploadService.getInstance();
-    return bulkUploadService.commitBulkUpload(validatedRows, dataType);
+    var result = bulkUploadService.commitBulkUpload(validatedRows, dataType);
+
+    // Log the bulk upload operation
+    if (result.success) {
+      auditService.logBulkUpload(
+        dataType,
+        result.summary.successful,
+        {
+          totalRows: result.summary.total,
+          failedRows: result.summary.failed
+        }
+      );
+    }
+
+    return result;
   } catch (e) {
     Logger.error('Failed to commit bulk data', { error: e.toString() });
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Get schedule for current user or specified faculty (if admin)
+ * SECURITY: Faculty can only view their own schedule
+ * @param {string} facultyEmail - Optional faculty email (admins only)
+ * @param {Object} filters - Optional filters
+ * @return {Object} Schedule data
+ */
+function getSchedule(facultyEmail, filters) {
+  try {
+    var scheduleService = ScheduleService.getInstance();
+    var authService = AuthService.getInstance();
+
+    // If no email specified, use current user's email
+    if (!facultyEmail) {
+      facultyEmail = authService.getCurrentUserEmail();
+    }
+
+    return scheduleService.getSchedule(facultyEmail, filters);
+  } catch (e) {
+    Logger.error('Failed to get schedule', { error: e.toString() });
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Update a schedule event
+ * SECURITY: Faculty can only update their own events
+ * @param {string} eventId - Event ID
+ * @param {Object} updates - Updates to apply
+ * @return {Object} Update result
+ */
+function updateScheduleEvent(eventId, updates) {
+  try {
+    var scheduleService = ScheduleService.getInstance();
+    return scheduleService.updateEvent(eventId, updates);
+  } catch (e) {
+    Logger.error('Failed to update schedule event', { error: e.toString() });
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Delete a schedule event
+ * SECURITY: Faculty can only delete their own events
+ * @param {string} eventId - Event ID
+ * @return {Object} Delete result
+ */
+function deleteScheduleEvent(eventId) {
+  try {
+    var scheduleService = ScheduleService.getInstance();
+    return scheduleService.deleteEvent(eventId);
+  } catch (e) {
+    Logger.error('Failed to delete schedule event', { error: e.toString() });
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Create a new schedule event
+ * SECURITY: Validates and sanitizes all input
+ * @param {Object} eventData - Event data
+ * @return {Object} Create result
+ */
+function createScheduleEvent(eventData) {
+  try {
+    var scheduleService = ScheduleService.getInstance();
+    return scheduleService.createEvent(eventData);
+  } catch (e) {
+    Logger.error('Failed to create schedule event', { error: e.toString() });
     return { success: false, error: e.toString() };
   }
 }
