@@ -185,7 +185,15 @@ function onOpen() {
       // If auth check fails, continue without admin menu
     }
 
-    menu.addItem('Test SheetManager', 'testSheetManager')
+    menu.addItem('🔧 Complete System Setup', 'completeSystemSetup')
+      .addSeparator()
+      .addItem('🔄 Sync Calendars Now', 'syncAllCalendars')
+      .addItem('⏰ Setup Daily Sync Trigger', 'setupDailyCalendarSyncTrigger')
+      .addItem('📋 List Active Triggers', 'listTriggers')
+      .addSeparator()
+      .addItem('🌐 Show Web App URL', 'showWebAppUrl')
+      .addSeparator()
+      .addItem('Test SheetManager', 'testSheetManager')
       .addItem('Test AuthService', 'testAuthService')
       .addItem('Test Bulk Upload', 'testBulkUploadService')
       .addSeparator()
@@ -849,5 +857,266 @@ function getFacultyScheduleData() {
       success: false,
       error: e.toString()
     };
+  }
+}
+
+/**
+ * TRIGGER MANAGEMENT
+ * Functions to set up and manage time-based triggers for automation
+ */
+
+/**
+ * Set up daily calendar sync trigger
+ * Creates a time-based trigger that runs dailyCalendarSync() every day at 2 AM
+ */
+function setupDailyCalendarSyncTrigger() {
+  try {
+    Logger.info('Setting up daily calendar sync trigger');
+
+    // First, remove any existing triggers for dailyCalendarSync
+    removeTrigger('dailyCalendarSync');
+
+    // Create new trigger to run at 2 AM every day
+    ScriptApp.newTrigger('dailyCalendarSync')
+      .timeBased()
+      .atHour(2)
+      .everyDays(1)
+      .create();
+
+    Logger.info('Daily calendar sync trigger created successfully');
+
+    SpreadsheetApp.getUi().alert(
+      'Trigger Created',
+      'Daily calendar sync trigger has been set up.\n\n' +
+      'The system will automatically sync calendars every day at 2:00 AM.\n\n' +
+      'You can view and manage triggers in the Apps Script editor under "Triggers".',
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+
+    return { success: true };
+
+  } catch (e) {
+    Logger.critical('Failed to setup daily trigger', {
+      error: e.toString(),
+      stack: e.stack
+    });
+
+    SpreadsheetApp.getUi().alert(
+      'Error',
+      'Failed to create trigger: ' + e.message,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Remove a specific trigger by function name
+ * @param {string} functionName - Name of the function to remove triggers for
+ */
+function removeTrigger(functionName) {
+  try {
+    var triggers = ScriptApp.getProjectTriggers();
+    var removed = 0;
+
+    for (var i = 0; i < triggers.length; i++) {
+      if (triggers[i].getHandlerFunction() === functionName) {
+        ScriptApp.deleteTrigger(triggers[i]);
+        removed++;
+        Logger.info('Removed trigger', {
+          function: functionName,
+          triggerId: triggers[i].getUniqueId()
+        });
+      }
+    }
+
+    return removed;
+  } catch (e) {
+    Logger.error('Failed to remove trigger', {
+      function: functionName,
+      error: e.toString()
+    });
+    throw e;
+  }
+}
+
+/**
+ * Remove all triggers for this project
+ * Use with caution - this will stop all automation
+ */
+function removeAllTriggers() {
+  try {
+    var ui = SpreadsheetApp.getUi();
+    var response = ui.alert(
+      'Remove All Triggers?',
+      'This will stop all automated tasks including daily calendar sync.\n\nAre you sure?',
+      ui.ButtonSet.YES_NO
+    );
+
+    if (response !== ui.Button.YES) {
+      return { success: false, cancelled: true };
+    }
+
+    var triggers = ScriptApp.getProjectTriggers();
+    var removed = 0;
+
+    for (var i = 0; i < triggers.length; i++) {
+      ScriptApp.deleteTrigger(triggers[i]);
+      removed++;
+    }
+
+    Logger.info('Removed all triggers', { count: removed });
+
+    ui.alert(
+      'Triggers Removed',
+      'Removed ' + removed + ' trigger(s).\n\nAutomation has been stopped.',
+      ui.ButtonSet.OK
+    );
+
+    return { success: true, removed: removed };
+
+  } catch (e) {
+    Logger.error('Failed to remove all triggers', {
+      error: e.toString(),
+      stack: e.stack
+    });
+
+    SpreadsheetApp.getUi().alert(
+      'Error',
+      'Failed to remove triggers: ' + e.message,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * List all active triggers
+ * Shows trigger information in a dialog
+ */
+function listTriggers() {
+  try {
+    var triggers = ScriptApp.getProjectTriggers();
+    var message = 'Active Triggers (' + triggers.length + '):\n\n';
+
+    if (triggers.length === 0) {
+      message += 'No triggers found.\n\nUse "Setup Daily Sync Trigger" to create one.';
+    } else {
+      for (var i = 0; i < triggers.length; i++) {
+        var trigger = triggers[i];
+        message += (i + 1) + '. ' + trigger.getHandlerFunction() + '\n';
+        message += '   Type: ' + trigger.getEventType() + '\n';
+
+        if (trigger.getEventType() === ScriptApp.EventType.CLOCK) {
+          message += '   Frequency: Time-based\n';
+        }
+
+        message += '\n';
+      }
+    }
+
+    SpreadsheetApp.getUi().alert('Active Triggers', message, SpreadsheetApp.getUi().ButtonSet.OK);
+
+    Logger.info('Listed triggers', { count: triggers.length });
+
+  } catch (e) {
+    Logger.error('Failed to list triggers', {
+      error: e.toString(),
+      stack: e.stack
+    });
+
+    SpreadsheetApp.getUi().alert(
+      'Error',
+      'Failed to list triggers: ' + e.message,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Complete system setup including triggers
+ * Run this after initial workbook initialization
+ */
+function completeSystemSetup() {
+  try {
+    var ui = SpreadsheetApp.getUi();
+
+    var response = ui.alert(
+      'Complete System Setup',
+      'This will:\n' +
+      '1. Verify workbook structure\n' +
+      '2. Set up daily calendar sync trigger\n' +
+      '3. Prepare system for deployment\n\n' +
+      'Continue?',
+      ui.ButtonSet.YES_NO
+    );
+
+    if (response !== ui.Button.YES) {
+      return { success: false, cancelled: true };
+    }
+
+    var results = [];
+
+    // Step 1: Verify workbook
+    results.push('✓ Checking workbook structure...');
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var requiredSheets = ['Faculty', 'Schedule', 'SwapRequests', 'AuditLog'];
+    var missingSheets = [];
+
+    for (var i = 0; i < requiredSheets.length; i++) {
+      if (!ss.getSheetByName(requiredSheets[i])) {
+        missingSheets.push(requiredSheets[i]);
+      }
+    }
+
+    if (missingSheets.length > 0) {
+      throw new Error('Missing sheets: ' + missingSheets.join(', ') + '. Run Initialize Workbook first.');
+    }
+    results.push('✓ All required sheets exist');
+
+    // Step 2: Set up trigger
+    results.push('✓ Setting up daily sync trigger...');
+    removeTrigger('dailyCalendarSync');
+    ScriptApp.newTrigger('dailyCalendarSync')
+      .timeBased()
+      .atHour(2)
+      .everyDays(1)
+      .create();
+    results.push('✓ Daily sync trigger created (runs at 2 AM)');
+
+    // Step 3: Log setup completion
+    Logger.info('System setup completed', {
+      sheets: requiredSheets,
+      triggersCreated: 1
+    });
+    results.push('✓ System setup logged');
+
+    var successMessage = results.join('\n') + '\n\n' +
+      '✅ System setup complete!\n\n' +
+      'Next steps:\n' +
+      '1. Add faculty to Faculty sheet\n' +
+      '2. Add events to Schedule sheet\n' +
+      '3. Deploy as web app (see deployment guide)\n' +
+      '4. Test calendar sync manually first';
+
+    ui.alert('Setup Complete', successMessage, ui.ButtonSet.OK);
+
+    return { success: true, results: results };
+
+  } catch (e) {
+    Logger.critical('System setup failed', {
+      error: e.toString(),
+      stack: e.stack
+    });
+
+    SpreadsheetApp.getUi().alert(
+      'Setup Failed',
+      'Error: ' + e.message,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+
+    return { success: false, error: e.toString() };
   }
 }
