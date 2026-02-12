@@ -160,8 +160,11 @@ function onOpen() {
       .addItem('Initialize Workbook', 'initializeWorkbook')
       .addItem('Add Sample Data', 'addSampleData')
       .addSeparator()
+      .addItem('📋 Bulk Upload...', 'showBulkUploadDialog')
+      .addSeparator()
       .addItem('Test SheetManager', 'testSheetManager')
       .addItem('Test AuthService', 'testAuthService')
+      .addItem('Test Bulk Upload', 'testBulkUploadService')
       .addToUi();
 
     Logger.info('Custom menu created');
@@ -256,6 +259,138 @@ function testAuthService() {
 
   } catch (e) {
     Logger.error('AuthService test failed', { error: e.toString() });
+    SpreadsheetApp.getUi().alert('Error', 'Test failed: ' + e.message, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * Show the bulk upload dialog
+ */
+function showBulkUploadDialog() {
+  try {
+    var html = HtmlService.createHtmlOutputFromFile('BulkUploadUI')
+      .setWidth(1000)
+      .setHeight(700)
+      .setTitle('Bulk Upload');
+
+    SpreadsheetApp.getUi().showModalDialog(html, 'Bulk Upload - Faculty & Events');
+
+    Logger.info('Bulk upload dialog opened');
+  } catch (e) {
+    Logger.error('Failed to show bulk upload dialog', { error: e.toString() });
+    SpreadsheetApp.getUi().alert('Error', 'Failed to open bulk upload: ' + e.message, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * Server-side function to preview bulk upload data
+ * Called from BulkUploadUI.html
+ * @param {string} rawData - Pasted table data
+ * @param {string} dataType - 'faculty' or 'events'
+ * @return {Object} Preview result
+ */
+function previewBulkData(rawData, dataType) {
+  try {
+    var bulkUploadService = BulkUploadService.getInstance();
+    return bulkUploadService.previewBulkUpload(rawData, dataType);
+  } catch (e) {
+    Logger.error('Failed to preview bulk data', { error: e.toString() });
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Server-side function to commit bulk upload data
+ * Called from BulkUploadUI.html
+ * @param {Array} validatedRows - Array of validated row objects
+ * @param {string} dataType - 'faculty' or 'events'
+ * @return {Object} Commit result
+ */
+function commitBulkData(validatedRows, dataType) {
+  try {
+    // Check authorization - only admins can bulk upload
+    var authService = AuthService.getInstance();
+    if (!authService.isAdmin()) {
+      Logger.warning('Unauthorized bulk upload attempt', {
+        user: authService.getCurrentUserEmail()
+      });
+      return {
+        success: false,
+        error: 'Only administrators can perform bulk uploads'
+      };
+    }
+
+    var bulkUploadService = BulkUploadService.getInstance();
+    return bulkUploadService.commitBulkUpload(validatedRows, dataType);
+  } catch (e) {
+    Logger.error('Failed to commit bulk data', { error: e.toString() });
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Test BulkUploadService functionality
+ */
+function testBulkUploadService() {
+  try {
+    Logger.info('Testing BulkUploadService');
+
+    var bulkService = BulkUploadService.getInstance();
+    var results = [];
+
+    // Test 1: Parse table data
+    var testData = 'Email\tName\tRole\tDepartment\n' +
+                   'test1@example.com\tDr. Test One\tFaculty\tCardiology\n' +
+                   'test2@example.com\tDr. Test Two\tAdmin\tSurgery';
+    var parsed = bulkService.parseTableData(testData);
+    if (parsed.headers.length === 4 && parsed.rows.length === 2) {
+      results.push('✓ Parse test passed (4 headers, 2 rows)');
+    } else {
+      results.push('✗ Parse test failed');
+    }
+
+    // Test 2: Date parsing - unambiguous
+    var dateResult1 = bulkService.parseDate('2024-02-15');
+    if (dateResult1.date && !dateResult1.isAmbiguous) {
+      results.push('✓ Unambiguous date test passed');
+    } else {
+      results.push('✗ Unambiguous date test failed');
+    }
+
+    // Test 3: Date parsing - ambiguous
+    var dateResult2 = bulkService.parseDate('01/02/2024');
+    if (dateResult2.date && dateResult2.isAmbiguous) {
+      results.push('✓ Ambiguous date test passed (flagged as ambiguous)');
+    } else {
+      results.push('✗ Ambiguous date test failed');
+    }
+
+    // Test 4: Similarity calculation
+    var similarity = bulkService.calculateSimilarity('Dr. John Smith', 'John Smith');
+    if (similarity >= 85) {
+      results.push('✓ Similarity test passed (' + similarity + '%)');
+    } else {
+      results.push('✗ Similarity test failed (' + similarity + '%)');
+    }
+
+    // Test 5: Fuzzy matching (if faculty exists)
+    var allFaculty = SheetManager.getInstance().queryRows('Faculty');
+    if (allFaculty.length > 0) {
+      var matches = bulkService.findMatchingFaculty('Dr. ' + allFaculty[0].Name);
+      if (matches.length > 0 && matches[0].confidence >= 85) {
+        results.push('✓ Fuzzy match test passed (confidence: ' + matches[0].confidence + '%)');
+      } else {
+        results.push('⚠ Fuzzy match test - no high confidence match');
+      }
+    } else {
+      results.push('⚠ Fuzzy match test skipped (no faculty in database)');
+    }
+
+    Logger.info('BulkUploadService tests completed', { results: results });
+    SpreadsheetApp.getUi().alert('BulkUploadService Tests', results.join('\n'), SpreadsheetApp.getUi().ButtonSet.OK);
+
+  } catch (e) {
+    Logger.error('BulkUploadService test failed', { error: e.toString() });
     SpreadsheetApp.getUi().alert('Error', 'Test failed: ' + e.message, SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }
